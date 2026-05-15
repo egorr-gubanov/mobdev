@@ -1,0 +1,7 @@
+me.contactapp-pngs-0 /Users/egorr-gubanov/mobdev/Contacts/app/build/generated/res/pngs/debug
+me.contactapp-updated_navigation_xml-1 /Users/egorr-gubanov/mobdev/Contacts/app/build/generated/updated_navigation_xml/debug
+me.contactapp-packageDebugResources-2 /Users/egorr-gubanov/mobdev/Contacts/app/build/intermediates/incremental/debug/packageDebugResources/merged.dir
+me.contactapp-packageDebugResources-3 /Users/egorr-gubanov/mobdev/Contacts/app/build/intermediates/incremental/debug/packageDebugResources/stripped.dir
+me.contactapp-debug-4 /Users/egorr-gubanov/mobdev/Contacts/app/build/intermediates/merged_res/debug/mergeDebugResources
+me.contactapp-debug-5 /Users/egorr-gubanov/mobdev/Contacts/app/src/debug/res
+me.contactapp-main-6 /Users/egorr-gubanov/mobdev/Contacts/app/src/main/res

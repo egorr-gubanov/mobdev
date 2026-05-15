@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="72dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:background="?attr/selectableItemBackground"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
+
+    <!-- Круглая аватарка с буквой -->
+    <TextView
+        android:id="@+id/tvAvatar"
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:background="@android:drawable/btn_default"
+        android:backgroundTint="#F2F2F7"
+        android:gravity="center"
+        android:textColor="#8E8E93"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-medium" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="16dp">
+
+        <TextView
+            android:id="@+id/tvContactName"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:textColor="#000000"
+            android:textSize="17sp"
+            android:fontFamily="sans-serif-medium" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:background="#C6C6C8" />
+    </LinearLayout>
+</LinearLayout>

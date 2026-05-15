@@ -1,0 +1,34 @@
+R_DEF: Internal format may change without notice
+local
+color black
+color white
+drawable ic_launcher_background
+drawable ic_launcher_foreground
+id btnRequestPermission
+id main
+id permissionContainer
+id recyclerView
+id tvAvatar
+id tvContactName
+id tvDetailName
+id tvDetailPhone
+id tvDetailTitle
+id tvTitle
+layout activity_main
+layout dialog_contact_details
+layout item_contact
+mipmap ic_launcher
+mipmap ic_launcher_round
+string app_name
+string contact_details
+string contacts_title
+string name_label
+string permission_required
+string phone_label
+string request_permission
+string unknown_name
+string unknown_phone
+style Base.Theme.Contacts
+style Theme.Contacts
+xml backup_rules
+xml data_extraction_rules

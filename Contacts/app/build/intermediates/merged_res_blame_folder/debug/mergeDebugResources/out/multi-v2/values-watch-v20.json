@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "me.contactapp-mergeDebugResources-28:/values-watch-v20/values-watch-v20.xml",
+            "map": [
+                {
+                    "source": "/Users/egorr-gubanov/.gradle/caches/9.3.1/transforms/7f222cc34d8758635f4a517c0e81d856/transformed/appcompat-1.6.1/res/values-watch-v20/values-watch-v20.xml",
+                    "from": {
+                        "startLines": "2,5,8",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,214,385",
+                        "endLines": "4,7,10",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "209,380,553"
+                    }
+                }
+            ]
+        }
+    ]
+}
