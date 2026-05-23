@@ -2,6 +2,7 @@ package lab3.egor.chat.ui.screens.messages
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,10 +14,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -45,46 +49,101 @@ fun MessagesScreen(
     onBack: () -> Unit,
     onImageClick: (String) -> Unit
 ) {
-    val messages by viewModel.messages.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(channelName, fontWeight = FontWeight.SemiBold, fontSize = 18.sp) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = AppleBlue)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
-            )
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(channelName, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                            if (!isOnline) {
+                                Text(
+                                    stringResource(R.string.offline_mode),
+                                    fontSize = 12.sp,
+                                    color = Color.Red
+                                )
+                            }
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = AppleBlue)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
+                )
+                OfflineBanner(isOnline = isOnline)
+            }
         },
         containerColor = White
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            Box(modifier = Modifier.weight(1f)) {
-                if (messages.isEmpty() && !isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = stringResource(R.string.no_messages),
-                            color = TextGray,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                } else {
-                    MessagesList(
-                        messages = messages,
-                        onLoadMore = { viewModel.loadMoreMessages() },
-                        onImageClick = onImageClick
-                    )
-                }
-            }
-            MessageInput(
-                onSendText = { text -> viewModel.sendMessage(text) },
-                onSendImage = { bytes -> viewModel.sendImage(bytes) }
+        Box(modifier = Modifier.padding(padding)) {
+            MessagesContent(
+                viewModel = viewModel,
+                onImageClick = onImageClick
             )
         }
+    }
+}
+
+@Composable
+fun OfflineBanner(isOnline: Boolean) {
+    AnimatedVisibility(
+        visible = !isOnline,
+        enter = expandVertically(),
+        exit = shrinkVertically()
+    ) {
+        Surface(
+            color = Color.Red.copy(alpha = 0.1f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color.Red, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.no_connection_hint), color = Color.Red, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun MessagesContent(
+    viewModel: ChatViewModel,
+    onImageClick: (String) -> Unit
+) {
+    val messages by viewModel.messages.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.weight(1f)) {
+            if (messages.isEmpty() && !isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(R.string.no_messages),
+                        color = TextGray,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                MessagesList(
+                    messages = messages,
+                    onLoadMore = { viewModel.loadMoreMessages() },
+                    onImageClick = onImageClick
+                )
+            }
+        }
+        MessageInput(
+            onSendText = { text -> viewModel.sendMessage(text) },
+            onSendImage = { bytes -> viewModel.sendImage(bytes) },
+            isOnline = isOnline
+        )
     }
 }
 
@@ -122,8 +181,11 @@ fun MessagesList(
 
 @Composable
 fun MessageBubble(message: Message, onImageClick: (String) -> Unit) {
+    val isPending = message.id < 0
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (isPending) 0.6f else 1f),
         horizontalAlignment = Alignment.Start
     ) {
         Text(
@@ -154,13 +216,26 @@ fun MessageBubble(message: Message, onImageClick: (String) -> Unit) {
                         contentScale = ContentScale.Crop
                     )
                 }
-                Text(
-                    text = try { SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.time)) } catch(e: Exception) { "" },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextGray,
-                    fontSize = 10.sp,
-                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
-                )
+                Row(
+                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatTime(message.time),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextGray,
+                        fontSize = 10.sp
+                    )
+                    if (isPending) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = TextGray
+                        )
+                    }
+                }
             }
         }
     }
@@ -169,7 +244,8 @@ fun MessageBubble(message: Message, onImageClick: (String) -> Unit) {
 @Composable
 fun MessageInput(
     onSendText: (String) -> Unit,
-    onSendImage: (ByteArray) -> Unit
+    onSendImage: (ByteArray) -> Unit,
+    isOnline: Boolean = true
 ) {
     var text by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -188,8 +264,16 @@ fun MessageInput(
                 .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { launcher.launch("image/*") }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = AppleBlue)
+            IconButton(
+                onClick = { launcher.launch("image/*") }, 
+                modifier = Modifier.size(36.dp),
+                enabled = isOnline
+            ) {
+                Icon(
+                    Icons.Default.Add, 
+                    contentDescription = null, 
+                    tint = if (isOnline) AppleBlue else Color.Gray
+                )
             }
             TextField(
                 value = text,

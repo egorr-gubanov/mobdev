@@ -2,6 +2,7 @@ package lab3.egor.chat.ui.screens.chats
 
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,7 +21,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import lab3.egor.chat.R
+import lab3.egor.chat.ui.screens.messages.OfflineBanner
 import lab3.egor.chat.ui.theme.AppleBlue
 import lab3.egor.chat.ui.theme.AppleGray
 import lab3.egor.chat.ui.theme.White
@@ -39,6 +42,7 @@ fun ChatsScreen(
     val channels by viewModel.channels.collectAsState()
     val selectedChannel by viewModel.selectedChannel.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
 
     var showDialog by remember { mutableStateOf(false) }
     var newChannelName by remember { mutableStateOf("") }
@@ -83,15 +87,29 @@ fun ChatsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.channels_title), fontWeight = FontWeight.SemiBold) },
-                actions = {
-                    IconButton(onClick = { viewModel.logout(onLogout) }) {
-                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = AppleBlue)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
-            )
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(stringResource(R.string.channels_title), fontWeight = FontWeight.SemiBold)
+                            if (!isOnline) {
+                                Text(
+                                    stringResource(R.string.offline_mode),
+                                    fontSize = 12.sp,
+                                    color = Color.Red
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.logout(onLogout) }) {
+                            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = AppleBlue)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
+                )
+                OfflineBanner(isOnline = isOnline)
+            }
         },
         floatingActionButton = {
             FloatingActionButton(

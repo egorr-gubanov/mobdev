@@ -1,24 +1,33 @@
 package lab3.egor.chat.viewmodel
 
-import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import lab3.egor.chat.R
 import lab3.egor.chat.data.model.Message
+import lab3.egor.chat.data.network.NetworkMonitor
 import lab3.egor.chat.data.repository.ChatRepository
 
-class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
-
-    private val _channels = MutableStateFlow<List<String>>(emptyList())
-    val channels: StateFlow<List<String>> = _channels.asStateFlow()
-
-    private val _messages = MutableStateFlow<List<Message>>(emptyList())
-    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
+class ChatViewModel(
+    private val repository: ChatRepository,
+    private val networkMonitor: NetworkMonitor
+) : ViewModel() {
 
     private val _selectedChannel = MutableStateFlow<String?>(null)
     val selectedChannel: StateFlow<String?> = _selectedChannel.asStateFlow()
+
+    val channels: StateFlow<List<String>> = repository.getChannelsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val messages: StateFlow<List<Message>> = _selectedChannel
+        .flatMapLatest { channel ->
+            if (channel == null) flowOf(emptyList())
+            else repository.getMessagesFlow(channel)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -29,64 +38,85 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
     private val _errorEvents = MutableSharedFlow<Int>()
     val errorEvents = _errorEvents.asSharedFlow()
 
+    val isOnline = networkMonitor.isOnline.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     private var isLastPage = false
+    private val loadedChannels = mutableSetOf<String>()
 
     init {
         loadChannels()
+        observeNetwork()
+    }
+
+    private fun observeNetwork() {
+        viewModelScope.launch {
+            networkMonitor.isOnline
+                .drop(1) // Пропускаем начальное значение, чтобы не триггерить обновление при старте
+                .collect { online ->
+                    if (online) {
+                        repository.retryPendingMessages()
+                        // Обновляем данные только при восстановлении соединения
+                        loadChannels(refresh = true)
+                        _selectedChannel.value?.let { loadMessages(it, force = true) }
+                    }
+                }
+        }
     }
 
     fun loadChannels(refresh: Boolean = false) {
-        if (!refresh && _channels.value.isNotEmpty()) return
+        // Если не принудительное обновление и данные уже есть — в сеть не идем
+        if (!refresh && channels.value.isNotEmpty()) return
+
         viewModelScope.launch {
             if (refresh) _isRefreshing.value = true else _isLoading.value = true
-            repository.getChannels()
-                .onSuccess { _channels.value = it }
-                .onFailure { _errorEvents.emit(R.string.error_load_channels) }
+            repository.syncChannels()
+                .onFailure { 
+                    if (refresh) _errorEvents.emit(R.string.error_load_channels) 
+                }
             _isRefreshing.value = false
             _isLoading.value = false
         }
     }
 
     fun selectChannel(channel: String?) {
-        if (_selectedChannel.value == channel && _messages.value.isNotEmpty()) return
+        if (_selectedChannel.value == channel) return
         _selectedChannel.value = channel
-        _messages.value = emptyList()
         isLastPage = false
         if (!channel.isNullOrEmpty()) {
             loadMessages(channel)
         }
     }
 
-    fun loadMessages(channel: String) {
-        if (_isLoading.value) return
+    fun loadMessages(channel: String, force: Boolean = false) {
+        // Если данные для канала уже загружены и мы не форсируем обновление — в сеть не идем
+        if (!force && loadedChannels.contains(channel) && messages.value.isNotEmpty()) return
+        
         viewModelScope.launch {
             _isLoading.value = true
-            repository.getMessages(channel)
-                .onSuccess { 
-                    _messages.value = it
-                    isLastPage = it.size < 20
+            repository.syncMessages(channel)
+                .onSuccess { loadedChannels.add(channel) }
+                .onFailure { 
+                    if (isOnline.value) _errorEvents.emit(R.string.error_load_messages)
                 }
-                .onFailure { _errorEvents.emit(R.string.error_load_messages) }
             _isLoading.value = false
         }
     }
 
     fun loadMoreMessages() {
         val channel = _selectedChannel.value ?: return
-        if (_isLoading.value || isLastPage) return
-        val lastId = _messages.value.lastOrNull()?.id?.toString() ?: return
+        if (_isLoading.value || isLastPage || !isOnline.value) return
+        
+        val currentMessages = messages.value
+        val lastRealMessage = currentMessages.lastOrNull { it.id > 0 }
+        val lastId = lastRealMessage?.id?.toString() ?: return
 
         viewModelScope.launch {
             _isLoading.value = true
-            repository.getMessages(channel, lastId)
-                .onSuccess { newMessages ->
-                    if (newMessages.isEmpty()) {
-                        isLastPage = true
-                    } else {
-                        _messages.value = _messages.value + newMessages
-                        if (newMessages.size < 20) isLastPage = true
-                    }
+            repository.syncMessages(channel, lastId)
+                .onSuccess { 
+                    // Room flow обновит UI
                 }
+                .onFailure { _errorEvents.emit(R.string.error_load_messages) }
             _isLoading.value = false
         }
     }
@@ -99,22 +129,17 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
         viewModelScope.launch {
             val from = repository.getCurrentUser()
             repository.sendMessage(channel, trimmedText, from)
-                .onSuccess {
-                    repository.getMessages(channel).onSuccess { _messages.value = it }
-                }
-                .onFailure { _errorEvents.emit(R.string.error_send_message) }
         }
     }
 
     fun sendImage(bytes: ByteArray) {
         val channel = _selectedChannel.value ?: return
+        if (!isOnline.value) return
+
         viewModelScope.launch {
             _isLoading.value = true
             val from = repository.getCurrentUser()
             repository.sendImage(channel, from, bytes)
-                .onSuccess {
-                    repository.getMessages(channel).onSuccess { _messages.value = it }
-                }
                 .onFailure { _errorEvents.emit(R.string.error_send_message) }
             _isLoading.value = false
         }
@@ -129,9 +154,8 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
     }
 
     fun clearData() {
-        _channels.value = emptyList()
-        _messages.value = emptyList()
         _selectedChannel.value = null
         isLastPage = false
+        loadedChannels.clear()
     }
 }

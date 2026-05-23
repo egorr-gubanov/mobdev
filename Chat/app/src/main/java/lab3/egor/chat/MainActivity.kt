@@ -29,8 +29,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.collectLatest
+import lab3.egor.chat.data.network.NetworkMonitor
 import lab3.egor.chat.data.repository.ChatRepository
 import lab3.egor.chat.data.storage.SettingsStorage
+import lab3.egor.chat.data.storage.db.AppDatabase
 import lab3.egor.chat.ui.navigation.Screen
 import lab3.egor.chat.ui.screens.chats.ChatsScreen
 import lab3.egor.chat.ui.screens.image.FullImageScreen
@@ -51,7 +53,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val storage = SettingsStorage(applicationContext)
-        val repository = ChatRepository(storage)
+        val database = AppDatabase.getDatabase(applicationContext)
+        val repository = ChatRepository(storage, database.chatDao())
+        val networkMonitor = NetworkMonitor(applicationContext)
 
         setContent {
             ChatTheme {
@@ -67,7 +71,7 @@ class MainActivity : ComponentActivity() {
 
                 val chatViewModel: ChatViewModel = viewModel(factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T = ChatViewModel(repository) as T
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T = ChatViewModel(repository, networkMonitor) as T
                 })
 
                 LaunchedEffect(Unit) {

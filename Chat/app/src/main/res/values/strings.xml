@@ -19,4 +19,6 @@
     <string name="new_chat_title">Создать или войти в чат</string>
     <string name="channel_name_hint">название@channel</string>
     <string name="cancel">Отмена</string>
+    <string name="offline_mode">Оффлайн режим</string>
+    <string name="no_connection_hint">Нет подключения к сети. Сообщения будут отправлены позже.</string>
 </resources>
